@@ -810,11 +810,100 @@ var Tabs = Module("tabs", {
             { argCount: "0" });
 
         if (config.has("tabbrowser")) {
-            commands.add(["b[uffer]"],
-                "Switch to a buffer",
+            commands.add(["c[urrent]"],
+                "Switch to a tab in the current tabgroup",
                 function (args) {
-                    if (args.length)
-                        tabs.switchTo(args[0], args.bang, args.count);
+                    if (args.length) {
+                        let matches = args[0].match(/^(\d+):?/);
+                        if (matches) {
+                            let match = parseInt(matches[0])
+                            if (match > 0 && match <= tabs.visibleTabs.length)
+                                tabs.select(String(match - 1));
+                        }
+                        // pls
+                        // else
+                        //     tabs.switchTo(args[0], args.bang, args.count);
+                    }
+                    else if (args.count)
+                        tabs.switchTo(String(args.count));
+                }, {
+                    argCount: "?",
+                    bang: true,
+                    count: true,
+                    completer: function (context) {
+                        completion.buffer(context, true);
+                    },
+                    literal: 0,
+                    privateData: true
+                });
+
+            commands.add(["b[uffers]"],
+                "Switch to a tabgroup",
+                function (args) {
+                    let tabGroups = [];
+
+                    for (let tabGroup of tabs.getGroups().GroupItems.groupItems) {
+                        tabGroups.push(tabGroup);
+                    }
+
+                    if (args.length) {
+                        let matches = args[0].match(/^(\d+):?/);
+                        if (matches) {
+                            let n = parseInt(matches[0])-1
+                            if (n >= 0 && n < tabGroups.length)
+                                // switch to last active tab in tabgroup
+                                tabs.select(tabGroups[n]._activeTab.tab);
+                        }
+                        // pls
+
+                        // else
+                        //     tabs.switchTo(args[0], args.bang, args.count);
+                    }
+                    //pls
+
+                    // else if (args.count)
+                    // {
+                    //     tabs.switchTo(String(args.count));
+                    // }
+                }, {
+                    argCount: "?",
+                    bang: true,
+                    count: true,
+                    completer: function (context) {
+                        completion.tabGroup(context);
+                    },
+                    literal: 0,
+                    privateData: true
+                });
+
+            commands.add(["tabs"],
+                "Switch to a tab in the current window",
+                function (args) {
+                    if (args.length) {
+                        let matches = args[0].match(/^(\d+):?/);
+                        if (matches) {
+                            let match = parseInt(matches[0]) - 1;
+                            let tabGroups = tabs.getGroups().GroupItems.groupItems;
+
+                            for (let tabGroup of tabGroups) {
+                                let children = tabGroup.getChildren();
+                                if (match < children.length)
+                                {
+                                    window.console.log(children[match].tab);
+                                    tabs.select(children[match].tab);
+                                    break;
+                                }
+                                match -= children.length;
+                                window.console.log(match, tabGroup.id, tabGroup.getChildren().length);
+                            }
+                        }
+                        // pls
+
+                        // else
+                        // {
+                        //     tabs.switchTo(args[0], args.bang, args.count);
+                        // }
+                    }
                     else if (args.count)
                         tabs.switchTo(String(args.count));
                 }, {
@@ -828,7 +917,7 @@ var Tabs = Module("tabs", {
                     privateData: true
                 });
 
-            commands.add(["buffers", "files", "ls", "tabs"],
+            commands.add(["files", "ls"],
                 "Show a list of all buffers",
                 function (args) { tabs.list(args[0] || ""); }, {
                     argCount: "?",
@@ -1071,6 +1160,8 @@ var Tabs = Module("tabs", {
                 group[1].push([i, tab.linkedBrowser]);
             });
 
+            window.console.log(tabGroups);
+
             context.pushProcessor(0, function (item, text, next) {
                 return [
                     ["span", { highlight: "Indicator", style: "display: inline-block;" },
@@ -1097,11 +1188,14 @@ var Tabs = Module("tabs", {
             context.compare = CompletionContext.Sort.number;
             context.filters[0] = CompletionContext.Filter.textDescription;
 
+            let n = 1;
+
             for (let [id, vals] of iter(tabGroups))
                 context.fork(id, 0, this, function (context, [name, browsers]) {
-                    context.title = [name || "Buffers"];
+                    context.title = [name || "Tab Group"];
                     context.generate = () =>
                         Array.map(browsers, function ([i, browser]) {
+                            // window.console.log(browser, i);
                             let indicator = " ";
                             if (i == tabs.index())
                                 indicator = "%";
@@ -1113,7 +1207,7 @@ var Tabs = Module("tabs", {
                             i = i + 1;
 
                             return {
-                                text: [i + ": " + (tab.label || /*L*/"(Untitled)"), i + ": " + url],
+                                text: [n + ": " + (tab.label || /*L*/"(Untitled)"), n++ + ": " + url],
                                 tab: tab,
                                 id: i,
                                 url: url,
@@ -1124,22 +1218,58 @@ var Tabs = Module("tabs", {
         };
 
         completion.tabGroup = function tabGroup(context) {
+            let { tabs } = modules;
+
             context.title = ["Tab Groups"];
             context.keys = {
-                text: "id",
-                description: function (group) {
-                    return group.getTitle() ||
-                           group.getChildren().map(t => t.tab.label)
-                                              .join(", ");
-                }
+                text: "text",
+                description: "description",
+                id: "id"
             };
-            context.generate = () => {
-                context.incomplete = true;
-                tabs.getGroups(function ({ GroupItems }) {
-                    context.incomplete = false;
-                    context.completions = GroupItems.groupItems;
+
+            let tabGroups = [];
+
+            for (let [i,tabG] of iter(tabs.getGroups().GroupItems.groupItems)) {
+                tabGroups.push([i, tabG]);
+            }
+
+            // window.console.log(tabGroups);
+
+            // context.generate = () => {
+            //     context.incomplete = true;
+            //     tabs.getGroups(function ({ GroupItems }) {
+            //         context.incomplete = false;
+            //         context.completions = GroupItems.groupItems;
+            //     });
+            // };
+
+            context.generate = () =>
+                Array.map(tabGroups, function ([i, tabG]) {
+                    // window.console.log(tabG);
+                    i = i + 1;
+
+                    let children = [];
+
+                    for (let child of tabG.getChildren()) {
+                        children.push(child);
+                    }
+
+                    // window.console.log(tabG._activeTab.tab.label, children);
+                    let activeTab = children.splice(children.indexOf(tabG._activeTab), 1)[0]
+                    // window.console.log(activeTab.label);
+
+                    children.unshift(activeTab);
+                    // window.console.log(children, children[0].label);
+
+                    return {
+                        text: i + ": " + (tabG.getTitle() || /*L*/"(Untitled)"),
+                        description: children.map(t => t.tab.label)
+                                                       .join(", "),
+                        id: tabG.id
+                    };
                 });
-            };
+
+            // window.console.log(context.generate());
         };
     },
     events: function initEvents() {
@@ -1192,13 +1322,33 @@ var Tabs = Module("tabs", {
             { count: true });
 
         if (config.has("tabbrowser")) {
+            mappings.add([modes.NORMAL], ["c"],
+                "Open a prompt to switch tabs in current tab group",
+                function ({ count }) {
+                    if (count != null)
+                        tabs.switchTo(String(count));
+                    else
+                        CommandExMode().open("current! ");
+                },
+                { count: true });
+
             mappings.add([modes.NORMAL], ["b"],
-                "Open a prompt to switch buffers",
+                "Open a prompt to switch tab groups",
                 function ({ count }) {
                     if (count != null)
                         tabs.switchTo(String(count));
                     else
                         CommandExMode().open("buffer! ");
+                },
+                { count: true });
+
+            mappings.add([modes.NORMAL], ["e"],
+                "Open a prompt to switch tabs in all tab groups",
+                function ({ count }) {
+                    if (count != null)
+                        tabs.switchTo(String(count));
+                    else
+                        CommandExMode().open("tabs! ");
                 },
                 { count: true });
 
