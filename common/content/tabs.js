@@ -248,14 +248,26 @@ var Tabs = Module("tabs", {
         let iframe = document.getElementById("tab-view");
         this._groups = iframe ? iframe.contentWindow : null;
 
-        if ("_groups" in this && !func)
+        window.console.log("a");
+
+        if (this._groups != null && !func)
+        {
+            window.console.log("b");
             return this._groups;
+        }
 
         if (func)
             func = bind(function (func) { func(this._groups); }, this, func);
+        else
+            func = {};
+
+        window.console.log(window.TabView);
 
         if (window.TabView && window.TabView._initFrame)
+        {
+            window.console.log("b", func);
             window.TabView._initFrame(func);
+        }
 
         this._groups = iframe ? iframe.contentWindow : null;
         if (this._groups && !func)
@@ -811,7 +823,7 @@ var Tabs = Module("tabs", {
 
         if (config.has("tabbrowser")) {
             commands.add(["c[urrent]"],
-                "Switch to a tab in the current tabgroup",
+                "Switch to a tab in the current tab group",
                 function (args) {
                     if (args.length) {
                         let matches = args[0].match(/^(\d+):?/);
@@ -838,7 +850,7 @@ var Tabs = Module("tabs", {
                 });
 
             commands.add(["b[uffers]"],
-                "Switch to a tabgroup",
+                "Switch to a tab group",
                 function (args) {
                     let tabGroups = [];
 
@@ -885,16 +897,27 @@ var Tabs = Module("tabs", {
                             let match = parseInt(matches[0]) - 1;
                             let tabGroups = tabs.getGroups().GroupItems.groupItems;
 
-                            for (let tabGroup of tabGroups) {
-                                let children = tabGroup.getChildren();
-                                if (match < children.length)
-                                {
-                                    window.console.log(children[match].tab);
-                                    tabs.select(children[match].tab);
-                                    break;
+                            // pinned tabs!
+                            let pinnedTabs = tabs.allTabs.filter(tab => tab.pinned);
+
+                            if (match < pinnedTabs.length)                             {
+                                window.console.log("pinned tab!");
+                                tabs.select(pinnedTabs[match]);
+                            }
+                            else {
+                                match -= pinnedTabs.length;
+
+                                for (let tabGroup of tabGroups) {
+                                    let children = tabGroup.getChildren();
+                                    if (match < children.length)
+                                    {
+                                        window.console.log(children[match].tab);
+                                        tabs.select(children[match].tab);
+                                        break;
+                                    }
+                                    match -= children.length;
+                                    window.console.log(match, tabGroup.id, tabGroup.getChildren().length);
                                 }
-                                match -= children.length;
-                                window.console.log(match, tabGroup.id, tabGroup.getChildren().length);
                             }
                         }
                         // pls
@@ -1150,17 +1173,36 @@ var Tabs = Module("tabs", {
             let defItem = { parent: { getTitle: function () { return ""; } } };
 
             let tabGroups = {};
+
             tabs.getGroups();
             tabs[visible ? "visibleTabs" : "allTabs"].forEach(function (tab, i) {
                 let group = (tab.tabItem || tab._tabViewTabItem || defItem).parent || defItem.parent;
                 if (!hasOwnProperty(tabGroups, group.id))
+                {
+                    window.console.log(group.id);
+                    if (group.id === undefined)
+                    {
+                        group.id = 0;
+                        group.getTitle = function () { return "Pinned Tabs"; };
+                    }
                     tabGroups[group.id] = [group.getTitle(), []];
+                }
 
                 group = tabGroups[group.id];
                 group[1].push([i, tab.linkedBrowser]);
             });
 
-            window.console.log(tabGroups);
+            // if (hasOwnProperty(tabGroups, undefined)) {
+            //     tabGroups[-1] = ["Pinned Tabs", tabGroups[undefined][1]];
+            //     delete tabGroups[undefined];
+            // }
+
+            // window.console.log(Object.keys(tabGroups).sort(function(a,b){return parseInt(a)>parseInt(b)}));
+
+            // for (let [id, vals] of iter(tabGroups))
+            // {
+            //     window.console.log(id, vals);
+            // }
 
             context.pushProcessor(0, function (item, text, next) {
                 return [
@@ -1188,10 +1230,21 @@ var Tabs = Module("tabs", {
             context.compare = CompletionContext.Sort.number;
             context.filters[0] = CompletionContext.Filter.textDescription;
 
+            // for (let tab in tabs.allTabs) {
+            //     if (tab.pinned) {
+            //         if (!hasOwnProperty(tabGroups, -1))
+            //             tabGroups[-1] = ["Pinned Tabs", []];
+
+            //         window.console.log(tab.label, tab.id);
+            //         tabGroups[-1][1].push([tab.id, tab.linkedBrowser]);
+            //     }
+            // }
+
             let n = 1;
 
             for (let [id, vals] of iter(tabGroups))
                 context.fork(id, 0, this, function (context, [name, browsers]) {
+
                     context.title = [name || "Tab Group"];
                     context.generate = () =>
                         Array.map(browsers, function ([i, browser]) {
@@ -1233,15 +1286,7 @@ var Tabs = Module("tabs", {
                 tabGroups.push([i, tabG]);
             }
 
-            // window.console.log(tabGroups);
-
-            // context.generate = () => {
-            //     context.incomplete = true;
-            //     tabs.getGroups(function ({ GroupItems }) {
-            //         context.incomplete = false;
-            //         context.completions = GroupItems.groupItems;
-            //     });
-            // };
+            window.console.log(tabGroups);
 
             context.generate = () =>
                 Array.map(tabGroups, function ([i, tabG]) {
@@ -1338,7 +1383,7 @@ var Tabs = Module("tabs", {
                     if (count != null)
                         tabs.switchTo(String(count));
                     else
-                        CommandExMode().open("buffer! ");
+                        CommandExMode().open("buffers! ");
                 },
                 { count: true });
 
