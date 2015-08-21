@@ -862,8 +862,16 @@ var Tabs = Module("tabs", {
                         if (matches) {
                             let n = parseInt(matches[0])-1
                             if (n >= 0 && n < tabGroups.length)
-                                // switch to last active tab in tabgroup
-                                tabs.select(tabGroups[n]._activeTab.tab);
+                                if (tabGroups[n]._activeTab == null) {
+                                    // window.console.log(prefs.get("browser.startup.homepage"));
+                                    // open new tab
+                                    dactyl.open(prefs.get("browser.startup.homepage") || "about:blank",
+                                                { from: "buffers", where: dactyl.NEW_TAB, background: args.bang });
+                                }
+                                else {
+                                    // switch to last active tab in tabgroup
+                                    tabs.select(tabGroups[n]._activeTab.tab);
+                                }
                         }
                         // pls
 
@@ -899,7 +907,7 @@ var Tabs = Module("tabs", {
                             // pinned tabs!
                             let pinnedTabs = tabs.allTabs.filter(tab => tab.pinned);
 
-                            if (match < pinnedTabs.length)                             {
+                            if (match < pinnedTabs.length) {
                                 window.console.log("pinned tab!");
                                 tabs.select(pinnedTabs[match]);
                             }
@@ -1315,12 +1323,12 @@ var Tabs = Module("tabs", {
                             id: tabG.id
                         };
                     }
-                    
+
                     return {
                         text: i + ": " + (tabG.getTitle() || /*L*/"(Untitled)"),
                         description: children.map(t => t.tab.label)
                                              .join(", "),
-                        icon: children[0].tab.icon || BookmarkCache.DEFAULT_FAVICON,
+                        icon: children[0].tab.image || BookmarkCache.DEFAULT_FAVICON,
                         id: tabG.id
                     };
                 });
