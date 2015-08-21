@@ -1305,11 +1305,22 @@ var Tabs = Module("tabs", {
                     children.unshift(activeTab);
                     // window.console.log(children, children[0].label);
 
+                    window.console.log(children);
+
+                    if (children[0] === undefined) {
+                        return {
+                            text: i + ": " + (tabG.getTitle() || /*L*/"(Untitled)"),
+                            description: "(Empty)",
+                            icon: BookmarkCache.DEFAULT_FAVICON,
+                            id: tabG.id
+                        };
+                    }
+                    
                     return {
                         text: i + ": " + (tabG.getTitle() || /*L*/"(Untitled)"),
                         description: children.map(t => t.tab.label)
-                                                       .join(", "),
-                        icon: children[0].tab.image || BookmarkCache.DEFAULT_FAVICON,
+                                             .join(", "),
+                        icon: children[0].tab.icon || BookmarkCache.DEFAULT_FAVICON,
                         id: tabG.id
                     };
                 });
