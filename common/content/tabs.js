@@ -250,8 +250,7 @@ var Tabs = Module("tabs", {
 
         window.console.log("a");
 
-        if (this._groups != null && !func)
-        {
+        if (this._groups != null && !func) {
             window.console.log("b");
             return this._groups;
         }
@@ -1036,13 +1035,17 @@ var Tabs = Module("tabs", {
             commands.add(["taba[ttach]"],
                 "Attach the current tab to another window",
                 function (args) {
-                    dactyl.assert(args.length <= 2 && !args.some(i => !/^\d+(?:$|:)/.test(i)),
-                                  _("error.trailingCharacters"));
+                    // pls
+
+                    // dactyl.assert(args.length <= 2 && !args.some(i => !/^\d+(?:$|:)/.test(i)),
+                                  // _("error.trailingCharacters"));
 
                     let [winIndex, tabIndex] = args.map(arg => parseInt(arg));
                     if (args["-group"]) {
                         util.assert(args.length == 1);
-                        window.TabView.moveTabTo(tabs.getTab(), winIndex);
+                        // pls
+
+                        // window.TabView.moveTabTo(tabs.getTab(), winIndex);
                         return;
                     }
 
@@ -1249,11 +1252,6 @@ var Tabs = Module("tabs", {
                     context.generate = () =>
                         Array.map(browsers, function ([i, browser]) {
                             // window.console.log(browser, i);
-                            let indicator = " ";
-                            if (i == tabs.index())
-                                indicator = "%";
-                            else if (i == tabs.index(tabs.alternate))
-                                indicator = "#";
 
                             let tab = tabs.getTab(i, visible);
                             let url = browser.contentDocument.location.href;
@@ -1277,6 +1275,7 @@ var Tabs = Module("tabs", {
             context.keys = {
                 text: "text",
                 description: "description",
+                icon: "icon",
                 id: "id"
             };
 
@@ -1310,6 +1309,7 @@ var Tabs = Module("tabs", {
                         text: i + ": " + (tabG.getTitle() || /*L*/"(Untitled)"),
                         description: children.map(t => t.tab.label)
                                                        .join(", "),
+                        icon: children[0].tab.image || BookmarkCache.DEFAULT_FAVICON,
                         id: tabG.id
                     };
                 });
